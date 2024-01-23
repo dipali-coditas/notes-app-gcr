@@ -1,34 +1,31 @@
 pipeline {
-    agent any 
+    agent any
     
-    stages{
-        stage("Clone Code"){
+    stages {
+        stage("Clone Code") {
             steps {
                 echo "Cloning the code"
-                git url:"https://github.com/LondheShubham153/django-notes-app.git", branch: "main"
+                git url: "https://github.com/dipali-coditas/notes-app-gcr.git", branch: "main"
             }
         }
-        stage("Build"){
+        stage('Build Stage') {
             steps {
-                echo "Building the image"
-                sh "docker build -t my-note-app ."
-            }
-        }
-        stage("Push to Docker Hub"){
-            steps {
-                echo "Pushing the image to docker hub"
-                withCredentials([usernamePassword(credentialsId:"dockerHub",passwordVariable:"dockerHubPass",usernameVariable:"dockerHubUser")]){
-                sh "docker tag my-note-app ${env.dockerHubUser}/my-note-app:latest"
-                sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPass}"
-                sh "docker push ${env.dockerHubUser}/my-note-app:latest"
+                echo 'Build Stage'
+                script {
+                    ver = readFile('version').trim()
+                    sh "docker build -t ${ver} ."
                 }
             }
         }
-        stage("Deploy"){
+        stage('Artifact Push Stage') {
             steps {
-                echo "Deploying the container"
-                sh "docker-compose down && docker-compose up -d"
-                
+                echo 'Artifact Push Stage'
+                script {
+                    withCredentials([file(credentialsId: 'service_acc', variable: 'service_acc')]) {
+                        sh "docker login -u _json_key --password-stdin https://asia-south1-docker.pkg.dev < \$service_acc"
+                        sh "docker push ${ver}"
+                    }
+                }
             }
         }
     }
